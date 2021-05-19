@@ -1,8 +1,12 @@
 package zhttp.service.server
 
-import io.netty.handler.codec.http.HttpServerKeepAliveHandler
+import io.netty.handler.codec.http.{
+  HttpRequestDecoder => JHttpRequestDecoder,
+  HttpResponseEncoder => JHttpResponseEncoder,
+  HttpServerKeepAliveHandler => JHttpServerKeepAliveHandler,
+}
 import zhttp.core._
-import zhttp.service.{HTTP_KEEPALIVE_HANDLER, HTTP_REQUEST_HANDLER, OBJECT_AGGREGATOR, SERVER_CODEC_HANDLER}
+import zhttp.service._
 
 /**
  * Initializes the netty channel with default handlers
@@ -12,8 +16,9 @@ final case class ServerChannelInitializer(httpH: JChannelHandler, maxSize: Int) 
   override def initChannel(channel: JChannel): Unit = {
     channel
       .pipeline()
-      .addLast(SERVER_CODEC_HANDLER, new JHttpServerCodec)
-      .addLast(HTTP_KEEPALIVE_HANDLER, new HttpServerKeepAliveHandler)
+      .addLast(SERVER_ENCODER, new JHttpResponseEncoder)
+      .addLast(SERVER_DECODER, new JHttpRequestDecoder(4096, 8192, 8192, false))
+      .addLast(HTTP_KEEPALIVE_HANDLER, new JHttpServerKeepAliveHandler)
       .addLast(OBJECT_AGGREGATOR, new JHttpObjectAggregator(maxSize))
       .addLast(HTTP_REQUEST_HANDLER, httpH)
     ()
