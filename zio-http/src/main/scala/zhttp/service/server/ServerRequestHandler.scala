@@ -41,7 +41,11 @@ final case class ServerRequestHandler[R](
           case HttpResult.Failure(e) => cb(SilentResponse[Throwable].silent(e))
           case HttpResult.Effect(z)  =>
             zExec.unsafeExecute(ctx, z) {
-              case Exit.Success(res)   => cb(res)
+              case Exit.Success(res)   => {
+                cb(res)
+                channelReadComplete(ctx)
+                ()
+              }
               case Exit.Failure(cause) =>
                 cause.failureOption match {
                   case Some(Some(e)) => cb(SilentResponse[Throwable].silent(e))
