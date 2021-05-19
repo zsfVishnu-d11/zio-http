@@ -60,6 +60,9 @@ private[zhttp] trait ResponseHelpers {
       headers = List(Header.contentTypeTextPlain),
     )
 
+  def byte(b: Chunk[Byte]): UResponse =
+    http(content = HttpData.CompleteData(b), headers = List(Header.contentTypeTextPlain))
+
   def jsonString(data: String): UResponse =
     http(
       content = HttpData.CompleteData(Chunk.fromArray(data.getBytes(HTTP_CHARSET))),
