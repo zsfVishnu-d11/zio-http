@@ -21,7 +21,7 @@ trait EncodeResponse {
     date: String,
   ): JDefaultHttpResponse = {
     val jHttpHeaders =
-      res.headers.foldLeft[JHttpHeaders](new JDefaultHttpHeaders()) { (jh, hh) =>
+      res.headers.foldLeft[JHttpHeaders](new JDefaultHttpHeaders(false)) { (jh, hh) =>
         jh.set(hh.name, hh.value)
       }
     jHttpHeaders.set(JHttpHeaderNames.SERVER, SERVER_NAME)
@@ -30,15 +30,15 @@ trait EncodeResponse {
     res.content match {
       case HttpData.CompleteData(data) =>
         val response = new JDefaultFullHttpResponse(jVersion, jStatus, Unpooled.wrappedBuffer(data.toArray), false)
-        jHttpHeaders.set(JHttpHeaderNames.CONTENT_LENGTH, data.length)
+        response.headers.set(JHttpHeaderNames.CONTENT_LENGTH, data.length)
         response.headers().setAll(jHttpHeaders)
         response
 
       case HttpData.StreamData(_) => new JDefaultHttpResponse(jVersion, jStatus, jHttpHeaders)
 
       case HttpData.Empty =>
-        jHttpHeaders.set(JHttpHeaderNames.CONTENT_LENGTH, 0)
         val response = new JDefaultFullHttpResponse(jVersion, jStatus, Unpooled.EMPTY_BUFFER, false)
+        response.headers.set(JHttpHeaderNames.CONTENT_LENGTH, 0)
         response.headers.setAll(jHttpHeaders)
         response
     }
