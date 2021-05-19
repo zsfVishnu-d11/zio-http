@@ -9,22 +9,23 @@ import io.netty.handler.codec.http.{
 import zhttp.core.{JDefaultFullHttpResponse, JDefaultHttpHeaders, JHttpHeaders}
 import zhttp.http.{HttpData, Response}
 
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-
 trait EncodeResponse {
   private val SERVER_NAME: String = "ZIO-Http"
 
   /**
    * Encode the [[zhttp.http.UHttpResponse]] to [io.netty.handler.codec.http.FullHttpResponse]
    */
-  def encodeResponse[R, E](jVersion: JHttpVersion, res: Response.HttpResponse[R, E]): JDefaultHttpResponse = {
+  def encodeResponse[R, E](
+    jVersion: JHttpVersion,
+    res: Response.HttpResponse[R, E],
+    date: String,
+  ): JDefaultHttpResponse = {
     val jHttpHeaders =
       res.headers.foldLeft[JHttpHeaders](new JDefaultHttpHeaders()) { (jh, hh) =>
         jh.set(hh.name, hh.value)
       }
     jHttpHeaders.set(JHttpHeaderNames.SERVER, SERVER_NAME)
-    jHttpHeaders.set(JHttpHeaderNames.DATE, s"${DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now)}")
+    jHttpHeaders.set(JHttpHeaderNames.DATE, date)
     val jStatus      = res.status.toJHttpStatus
     res.content match {
       case HttpData.CompleteData(data) =>

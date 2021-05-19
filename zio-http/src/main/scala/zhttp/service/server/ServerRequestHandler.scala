@@ -9,6 +9,10 @@ import zhttp.service.Server.Settings
 import zhttp.service._
 import zio.Exit
 
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
+
 /**
  * Helper class with channel methods
  */
@@ -67,7 +71,7 @@ final case class ServerRequestHandler[R](
       case res @ Response.HttpResponse(_, _, content) =>
         content match {
           case HttpData.StreamData(data) =>
-            ctx.write(encodeResponse(jReq.protocolVersion(), res), ctx.channel().voidPromise())
+            ctx.write(encodeResponse(jReq.protocolVersion(), res, date), ctx.channel().voidPromise())
             zExec.unsafeExecute_(ctx) {
               for {
                 _ <- data.foreachChunk(c => ChannelFuture.unit(ctx.writeAndFlush(JUnpooled.copiedBuffer(c.toArray))))
@@ -75,8 +79,9 @@ final case class ServerRequestHandler[R](
               } yield ()
             }
           case HttpData.CompleteData(_)  =>
-            ctx.write(encodeResponse(jReq.protocolVersion(), res), ctx.channel().voidPromise())
-          case HttpData.Empty            => ctx.write(encodeResponse(jReq.protocolVersion(), res), ctx.channel().voidPromise())
+            ctx.write(encodeResponse(jReq.protocolVersion(), res, date), ctx.channel().voidPromise())
+          case HttpData.Empty            =>
+            ctx.write(encodeResponse(jReq.protocolVersion(), res, date), ctx.channel().voidPromise())
         }
         ()
 
@@ -113,4 +118,21 @@ final case class ServerRequestHandler[R](
     ctx.close()
     ()
   }
+  @volatile
+  var date = s"${DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now)}"
+
+  import java.util.concurrent.Executors
+
+  private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+
+  scheduler.scheduleWithFixedDelay(
+    new Runnable() {
+      override def run(): Unit = {
+        date = s"${DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now)}"
+      }
+    },
+    1000,
+    1000,
+    TimeUnit.MILLISECONDS,
+  )
 }
