@@ -61,20 +61,18 @@ final case class ServerRequestHandler[R](
   override def channelRead0(ctx: JChannelHandlerContext, jReq: JFullHttpRequest): Unit = {
     executeAsync(ctx, jReq) {
       case res @ Response.HttpResponse(_, _, content) =>
-        ctx.write(encodeResponse(jReq.protocolVersion(), res), ctx.channel().voidPromise())
-        releaseOrIgnore(jReq)
         content match {
-          case HttpData.StreamData(data)   =>
+          case HttpData.StreamData(data) =>
+            ctx.write(encodeResponse(jReq.protocolVersion(), res), ctx.channel().voidPromise())
             zExec.unsafeExecute_(ctx) {
               for {
                 _ <- data.foreachChunk(c => ChannelFuture.unit(ctx.writeAndFlush(JUnpooled.copiedBuffer(c.toArray))))
                 _ <- ChannelFuture.unit(ctx.writeAndFlush(JLastHttpContent.EMPTY_LAST_CONTENT))
               } yield ()
             }
-          case HttpData.CompleteData(data) =>
-            ctx.write(JUnpooled.copiedBuffer(data.toArray), ctx.channel().voidPromise())
-            ctx.writeAndFlush(JLastHttpContent.EMPTY_LAST_CONTENT)
-          case HttpData.Empty              => ctx.writeAndFlush(JLastHttpContent.EMPTY_LAST_CONTENT)
+          case HttpData.CompleteData(_)  =>
+            ctx.write(encodeResponse(jReq.protocolVersion(), res), ctx.channel().voidPromise())
+          case HttpData.Empty            => ctx.write(encodeResponse(jReq.protocolVersion(), res), ctx.channel().voidPromise())
         }
         ()
 
@@ -87,6 +85,8 @@ final case class ServerRequestHandler[R](
         ctx.channel().eventLoop().submit(() => ctx.fireChannelRead(jReq))
         ()
     }
+    releaseOrIgnore(jReq)
+    ()
   }
 
   /**
@@ -97,8 +97,18 @@ final case class ServerRequestHandler[R](
       case Some(v) => zExec.unsafeExecute_(ctx)(v(cause).uninterruptible)
       case None    => {
         ctx.fireExceptionCaught(cause)
+        ctx.close()
         ()
       }
     }
+  }
+  override def channelReadComplete(ctx: JChannelHandlerContext): Unit = {
+    ctx.flush()
+    ()
+  }
+
+  override def channelUnregistered(ctx: JChannelHandlerContext): Unit = {
+    ctx.close()
+    ()
   }
 }
