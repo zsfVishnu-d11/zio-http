@@ -17,7 +17,7 @@ final case class ServerChannelInitializer(httpH: JChannelHandler, maxSize: Int) 
   override def initChannel(channel: JChannel): Unit = {
     channel
       .pipeline()
-      .addLast(FLUSH_CONSOLIDATOR, new JFlushConsolidationHandler(1024, true))
+      .addLast(FLUSH_CONSOLIDATOR, new JFlushConsolidationHandler(256, false))
       .addLast(SERVER_ENCODER, new JHttpResponseEncoder)
       .addLast(SERVER_DECODER, new JHttpRequestDecoder(4096, 8192, 8192, false))
       .addLast(HTTP_KEEPALIVE_HANDLER, new JHttpServerKeepAliveHandler)
