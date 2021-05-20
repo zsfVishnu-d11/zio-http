@@ -47,7 +47,6 @@ final case class ServerRequestHandler[R](
             zExec.unsafeExecute(ctx, z) {
               case Exit.Success(res)   => {
                 cb(res)
-                channelReadComplete(ctx)
                 ()
               }
               case Exit.Failure(cause) =>
@@ -79,9 +78,9 @@ final case class ServerRequestHandler[R](
               } yield ()
             }
           case HttpData.CompleteData(_)  =>
-            ctx.write(encodeResponse(jReq.protocolVersion(), res, date), ctx.channel().voidPromise())
+            ctx.writeAndFlush(encodeResponse(jReq.protocolVersion(), res, date), ctx.channel().voidPromise())
           case HttpData.Empty            =>
-            ctx.write(encodeResponse(jReq.protocolVersion(), res, date), ctx.channel().voidPromise())
+            ctx.writeAndFlush(encodeResponse(jReq.protocolVersion(), res, date), ctx.channel().voidPromise())
         }
         ()
 
@@ -107,10 +106,6 @@ final case class ServerRequestHandler[R](
       case None    => ()
     }
     ctx.close()
-    ()
-  }
-  override def channelReadComplete(ctx: JChannelHandlerContext): Unit = {
-    ctx.flush()
     ()
   }
 

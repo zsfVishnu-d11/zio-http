@@ -5,6 +5,7 @@ import io.netty.handler.codec.http.{
   HttpResponseEncoder => JHttpResponseEncoder,
   HttpServerKeepAliveHandler => JHttpServerKeepAliveHandler,
 }
+import io.netty.handler.flush.{FlushConsolidationHandler => JFlushConsolidationHandler}
 import zhttp.core._
 import zhttp.service._
 
@@ -16,6 +17,7 @@ final case class ServerChannelInitializer(httpH: JChannelHandler, maxSize: Int) 
   override def initChannel(channel: JChannel): Unit = {
     channel
       .pipeline()
+      .addLast(FLUSH_CONSOLIDATOR, new JFlushConsolidationHandler(256, true))
       .addLast(SERVER_ENCODER, new JHttpResponseEncoder)
       .addLast(SERVER_DECODER, new JHttpRequestDecoder(4096, 8192, 8192, false))
       .addLast(HTTP_KEEPALIVE_HANDLER, new JHttpServerKeepAliveHandler)
