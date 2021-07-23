@@ -23,7 +23,7 @@ object ResponseHelpersSpec {
       test("Permanent redirect should produce a response with a location") {
         val x = Response.permanentRedirect(location)
         assert(x.headers)(contains(Header.location(location)))
-      }
+      },
     )
   }
 
