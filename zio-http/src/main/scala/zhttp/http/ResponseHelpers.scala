@@ -1,10 +1,11 @@
 package zhttp.http
 
+import java.io.{PrintWriter, StringWriter}
+import java.net.URLDecoder
+
 import zhttp.http.Response.HttpResponse
 import zhttp.socket.{Socket, SocketApp, WebSocketFrame}
 import zio.Chunk
-
-import java.io.{PrintWriter, StringWriter}
 
 private[zhttp] trait ResponseHelpers {
   private val defaultStatus  = Status.OK
@@ -54,11 +55,12 @@ private[zhttp] trait ResponseHelpers {
 
   def ok: UResponse = http(Status.OK)
 
-  def text(text: String): UResponse =
+  def text(text: String): UResponse = {
     http(
-      content = HttpData.CompleteData(Chunk.fromArray(text.getBytes(HTTP_CHARSET))),
+      content = HttpData.CompleteData(Chunk.fromArray(URLDecoder.decode(text, HTTP_CHARSET).getBytes(HTTP_CHARSET))),
       headers = List(Header.contentTypeTextPlain),
     )
+  }
 
   def jsonString(data: String): UResponse =
     http(
