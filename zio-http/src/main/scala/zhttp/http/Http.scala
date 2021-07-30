@@ -252,6 +252,30 @@ sealed trait Http[-R, +E, -A, +B] { self =>
         }
     }
   }
+
+  final private[zhttp] def executeAsZIO(a: A): ZIO[R, Option[E], B] = {
+    self match {
+      case Empty                   => ZIO.fail(None)
+      case Identity                => ZIO.succeed(a.asInstanceOf[B])
+      case Succeed(b)              => ZIO.succeed(b)
+      case Fail(e)                 => ZIO.fail(Option(e))
+      case FromEffectFunction(f)   => f(a).mapError(Option(_))
+      case Collect(pf)             => if (pf.isDefinedAt(a)) ZIO.succeed(pf(a)) else ZIO.fail(None)
+      case Chain(self, other)      => ZIO.effectSuspendTotal(self.executeAsZIO(a) >>= (other.executeAsZIO(_)))
+      case FoldM(self, ee, bb, dd) =>
+        ZIO.effectSuspendTotal {
+          self
+            .executeAsZIO(a)
+            .foldM(
+              {
+                case Some(error) => ee(error).executeAsZIO(a)
+                case None        => dd.executeAsZIO(a)
+              },
+              bb(_).executeAsZIO(a),
+            )
+        }
+    }
+  }
 }
 
 object Http {
