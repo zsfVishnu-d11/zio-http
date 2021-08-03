@@ -1,7 +1,7 @@
 package zhttp.service
 
 import io.netty.channel.{ChannelHandlerContext, EventLoopGroup => JEventLoopGroup}
-import io.netty.util.concurrent.{EventExecutor => JEventExecutor}
+import io.netty.util.concurrent.EventExecutor
 import zio.internal.Executor
 import zio.{Exit, Runtime, URIO, ZIO}
 
@@ -45,18 +45,18 @@ final class UnsafeChannelExecutor[R](runtime: UnsafeChannelExecutor.RuntimeMap[R
 
 object UnsafeChannelExecutor {
   sealed trait RuntimeMap[R] {
-    def getRuntime(ctx: JChannelHandlerContext): Runtime[R]
+    def getRuntime(ctx: ChannelHandlerContext): Runtime[R]
   }
 
   object RuntimeMap {
 
     case class Default[R](runtime: Runtime[R]) extends RuntimeMap[R] {
-      override def getRuntime(ctx: JChannelHandlerContext): Runtime[R] = runtime
+      override def getRuntime(ctx: ChannelHandlerContext): Runtime[R] = runtime
     }
 
     case class Group[R](runtime: Runtime[R], group: JEventLoopGroup) extends RuntimeMap[R] {
-      private val localRuntime: mutable.Map[JEventExecutor, Runtime[R]] = {
-        val map = mutable.Map.empty[JEventExecutor, Runtime[R]]
+      private val localRuntime: mutable.Map[EventExecutor, Runtime[R]] = {
+        val map = mutable.Map.empty[EventExecutor, Runtime[R]]
         for (exe <- group.asScala)
           map += exe -> runtime.withYieldOnStart(false).withExecutor {
             Executor.fromExecutionContext(runtime.platform.executor.yieldOpCount) {
@@ -67,7 +67,7 @@ object UnsafeChannelExecutor {
         map
       }
 
-      override def getRuntime(ctx: JChannelHandlerContext): Runtime[R] =
+      override def getRuntime(ctx: ChannelHandlerContext): Runtime[R] =
         localRuntime.getOrElse(ctx.executor(), runtime)
     }
 
