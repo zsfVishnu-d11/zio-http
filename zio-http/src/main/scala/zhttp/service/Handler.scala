@@ -13,8 +13,9 @@ import zhttp.service.server.ServerSocketHandler
 import zhttp.socket.SocketApp
 import zio.stream.ZStream
 import zio.{Chunk, Promise, UIO, ZIO}
-
 import java.net.{InetAddress, InetSocketAddress}
+
+import io.netty.util.concurrent.Future
 
 final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], zExec: HttpRuntime[R])
     extends ChannelInboundHandlerAdapter { ad =>
@@ -258,7 +259,7 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], zExec: HttpRu
     ctx: ChannelHandlerContext,
     req: Request,
     socket: SocketApp[R, Throwable],
-  ) = {
+  ): Future[ChannelHandlerContext] = {
     val fullReq =
       new DefaultFullHttpRequest(HTTP_1_1, req.method.asHttpMethod, req.url.asString, Unpooled.EMPTY_BUFFER, false)
     fullReq.headers().setAll(Header.disassemble(req.headers))

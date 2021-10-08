@@ -3,8 +3,9 @@ package zhttp.http
 import io.netty.handler.codec.http.HttpHeaderNames
 import zhttp.experiment.ContentDecoder
 import zio.{Chunk, ZIO}
-
 import java.net.InetAddress
+
+import zhttp.socket.SocketApp
 
 trait Request extends HeadersHelpers { self =>
   def method: Method
@@ -54,6 +55,9 @@ trait Request extends HeadersHelpers { self =>
 
   def isValidWebSocketRequest: Boolean =
     checkWebSocketKey && checkWebSocketUpgrade && checkWebSocketMethod
+
+  def fromSocketApp[R, E](socketApp: SocketApp[R, E]): Response[R, E] =
+    SocketResponse.from(req = self, socketApp = socketApp)
 }
 
 object Request {
