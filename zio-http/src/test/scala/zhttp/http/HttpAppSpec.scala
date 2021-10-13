@@ -2,6 +2,7 @@ package zhttp.http
 
 import io.netty.handler.codec.http.{HttpMethod, HttpResponse}
 import zhttp.experiment.ContentDecoder
+import zhttp.experiment.ContentDecoder.Step
 import zhttp.experiment.internal.{HttpAppClient, HttpMessageAssertions}
 import zhttp.http.HttpApp.InvalidMessage
 import zhttp.service.EventLoopGroup
@@ -187,34 +188,61 @@ object HttpAppSpec extends DefaultRunnableSpec with HttpMessageAssertions {
   )
 
   def ContentDecoderSpec = suite("ContentDecoder")(
-    testM("status is 200") {
-      val res = HttpApp.fromHttp(Http.collect[Request] { case _ => Ok }).getResponse
-      assertM(res)(isResponse(responseStatus(200)))
-    } +
-      testM("text") {
-        val content = HttpApp
-          .fromHttp(Http.collect[Request] { case _ => Ok })
-          .getRequestContent(ContentDecoder.text)
+//    testM("status is 200") {
+//      val res = HttpApp.fromHttp(Http.collect[Request] { case _ => Ok }).getResponse
+//      assertM(res)(isResponse(responseStatus(200)))
+//    } +
+//      testM("text") {
+//        val content = HttpApp
+//          .fromHttp(Http.collect[Request] { case _ => Ok })
+//          .getRequestContent(ContentDecoder.text)
+//
+//        assertM(content)(equalTo("ABCD"))
+//      } +
+//      testM("text (twice)") {
+//        val content = HttpApp
+//          .fromHttp(Http.collectM[Request] { case req => req.decodeContent(ContentDecoder.text).as(Ok) })
+//          .getRequestContent(ContentDecoder.text)
+//          .either
+//
+//        assertM(content)(isLeft(equalTo(ContentDecoder.Error.ContentDecodedOnce)))
+//      } +
+//      testM("custom") {
+//        val content = HttpApp
+//          .fromHttp(Http.collect[Request] { case _ => Ok })
+//          .getRequestContent(ContentDecoder.collect(Chunk[Byte]()) { case (a, b, isLast) =>
+//            ZIO((if (isLast) Option(b ++ a) else None, b ++ a))
+//          })
+//          .map(chunk => new String(chunk.toArray))
+//        assertM(content)(equalTo("ABCD"))
+//      } +
+    testM("should encode UTF-8 characters") {
+      val message                                                            = "😂hey"
+      val state                                                              = ""
+      def b[A, S](a: A, s: S, t: Boolean): ZIO[Any, Nothing, (Option[A], S)] = ???
+//      {
+//        println(a)
+//        if (t)
+//          ZIO.succeed((Some(a), s))
+//        else
+//          ZIO.succeed((None, s))
+//      }
+      val step: ContentDecoder[Any, Nothing, Chunk[Byte], Chunk[Byte]]       =
+        ContentDecoder.collect(Step[Any, Nothing, String, Chunk[Byte], Chunk[Byte]](state, b)) { case (_, state, _) =>
+          ZIO.succeed((Option(Chunk.fromArray(message.getBytes())), state))
+        }
+      val a                                                                  = HttpApp
+        .fromHttp(Http.collectM[Request] {
+          case req => {
+            req.decodeContent(step).map { content =>
+              Response(data = HttpData.fromChunk(content))
+            }
+          }
+        })
+        .getContent
 
-        assertM(content)(equalTo("ABCD"))
-      } +
-      testM("text (twice)") {
-        val content = HttpApp
-          .fromHttp(Http.collectM[Request] { case req => req.decodeContent(ContentDecoder.text).as(Ok) })
-          .getRequestContent(ContentDecoder.text)
-          .either
-
-        assertM(content)(isLeft(equalTo(ContentDecoder.Error.ContentDecodedOnce)))
-      } +
-      testM("custom") {
-        val content = HttpApp
-          .fromHttp(Http.collect[Request] { case _ => Ok })
-          .getRequestContent(ContentDecoder.collect(Chunk[Byte]()) { case (a, b, isLast) =>
-            ZIO((if (isLast) Option(b ++ a) else None, b ++ a))
-          })
-          .map(chunk => new String(chunk.toArray))
-        assertM(content)(equalTo("ABCD"))
-      },
+      assertM(a)(equalTo("😂hey"))
+    },
   )
 
   def RemoteAddressSpec = suite("RemoteAddressSpec") {
