@@ -5,7 +5,7 @@ import io.netty.channel.{ChannelHandlerContext, ChannelInboundHandlerAdapter}
 import io.netty.handler.codec.http.HttpResponseStatus._
 import io.netty.handler.codec.http.HttpVersion._
 import io.netty.handler.codec.http._
-import zhttp.experiment.{ContentDecoder, Part}
+import zhttp.experiment.{ContentDecoder}
 import zhttp.http.HttpApp.InvalidMessage
 import zhttp.http._
 import zio.stream.{UStream, ZStream}
@@ -187,7 +187,7 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], zExec: HttpRu
           try {
             multipartDecoder.offer(content)
           } catch {
-            case e: ErrorDataDecoderException => ???
+            case _: ErrorDataDecoderException => ???
           }
           var httpData: List[InterfaceHttpData] = List.empty
           unsafeRunZIO(for {
@@ -252,11 +252,13 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], zExec: HttpRu
 
         // HttpUtil.isTransferEncodingChunked(jRequest) might be useful
         decoder match {
+          case ContentDecoder.Text             => ()
+          case ContentDecoder.Step(_, _)       => ()
           case ContentDecoder.StreamStep(_, _) =>
             try {
               multipartDecoder = new HttpPostRequestDecoder(jRequest)
             } catch {
-              case e: ErrorDataDecoderException => ??? // if the default charset was wrong when decoding or other errors
+              case _: ErrorDataDecoderException => ??? // if the default charset was wrong when decoding or other errors
             }
         }
         unsafeRun(
