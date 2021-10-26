@@ -1,20 +1,53 @@
 package zhttp.http
 
+import zhttp.http.Cookie.{HttpOnly, Secure}
+
 import java.time.Instant
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.util.{Failure, Success, Try}
-
 final case class Cookie(
   name: String,
   content: String,
   expires: Option[Instant] = None,
   domain: Option[String] = None,
   path: Option[Path] = None,
-  secure: Boolean = false,
-  httpOnly: Boolean = false,
+  secure: Secure = false,
+  httpOnly: HttpOnly = false,
   maxAge: Option[Duration] = None,
   sameSite: Option[Cookie.SameSite] = None,
 ) { self =>
+
+  /**
+   * set expiry in Cookie
+   */
+  def @@(expires: Instant): Cookie = self.copy(expires = Some(expires))
+
+  /**
+   * set domain in Cookie
+   */
+  def @@(domain: String): Cookie = self.copy(domain = Some(domain))
+
+  /**
+   * set path in Cookie
+   */
+  def @@(path: Path): Cookie = self.copy(path = Some(path))
+
+  /**
+   * set cookie with secure
+   */
+  def @@(secure: Secure): Cookie = self.copy(secure = secure)
+
+  /**
+   * set max-age in Cookie
+   */
+  def @@(maxAge: Duration): Cookie = self.copy(maxAge = Some(maxAge))
+
+  /**
+   * set same-site in Cookie
+   */
+  def @@(sameSite: Cookie.SameSite): Cookie = self.copy(sameSite = Some(sameSite))
+
+//  def @@(httpOnly: HttpOnly): Cookie = self.copy(httpOnly = httpOnly)
 
   /**
    * clears the cookie with empty content
@@ -28,39 +61,9 @@ final case class Cookie(
   def setContent(v: String): Cookie = copy(content = v)
 
   /**
-   * set expiry in Cookie
-   */
-  def setExpiry(v: Instant): Cookie = copy(expires = Some(v))
-
-  /**
-   * set max-age in Cookie
-   */
-  def setMaxAge(v: Duration): Cookie = copy(maxAge = Some(v))
-
-  /**
-   * set domain in Cookie
-   */
-  def setDomain(v: String): Cookie = copy(domain = Some(v))
-
-  /**
-   * set path in Cookie
-   */
-  def setPath(v: Path): Cookie = copy(path = Some(v))
-
-  /**
-   * set cookie with secure
-   */
-  def withSecure: Cookie = copy(secure = true)
-
-  /**
    * set httpOnly in Cookie
    */
   def withHttpOnly: Cookie = copy(httpOnly = true)
-
-  /**
-   * set same-site in Cookie
-   */
-  def withSameSite(v: Cookie.SameSite): Cookie = copy(sameSite = Some(v))
 
   /**
    * reset secure in Cookie
@@ -117,6 +120,8 @@ final case class Cookie(
 }
 
 object Cookie {
+  type Secure   = Boolean
+  type HttpOnly = Boolean
 
   sealed trait SameSite {
     def asString: String
@@ -149,22 +154,22 @@ object Cookie {
       case ("expires", Some(v))  =>
         parseDate(v) match {
           case Left(_)      => cookie = Left(new IllegalArgumentException("expiry date cannot be parsed"))
-          case Right(value) => cookie = cookie.map(_.setExpiry(value))
+          case Right(value) => cookie = cookie.map(_ @@ expiry(value))
         }
       case ("max-age", Some(v))  =>
         Try(v.toLong) match {
-          case Success(maxAge) => cookie = cookie.map(_.setMaxAge(Duration(maxAge, SECONDS)))
+          case Success(maxAge) => cookie = cookie.map(_ @@ Duration(maxAge, SECONDS))
           case Failure(_)      => cookie = Left(new IllegalArgumentException("max-age cannot be parsed"))
         }
-      case ("domain", v)         => cookie = cookie.map(_.setDomain(v.getOrElse("")))
-      case ("path", v)           => cookie = cookie.map(_.setPath(Path(v.getOrElse(""))))
-      case ("secure", _)         => cookie = cookie.map(_.withSecure)
+      case ("domain", v)         => cookie = cookie.map(_ @@ v.getOrElse(""))
+      case ("path", v)           => cookie = cookie.map(_ @@ Path(v.getOrElse("")))
+      case ("secure", _)         => cookie = cookie.map(_ @@ secure)
       case ("httponly", _)       => cookie = cookie.map(_.withHttpOnly)
       case ("samesite", Some(v)) =>
         v.trim.toLowerCase match {
-          case "lax"    => cookie = cookie.map(_.withSameSite(SameSite.Lax))
-          case "strict" => cookie = cookie.map(_.withSameSite(SameSite.Strict))
-          case "none"   => cookie = cookie.map(_.withSameSite(SameSite.None))
+          case "lax"    => cookie = cookie.map(_ @@ SameSite.Lax)
+          case "strict" => cookie = cookie.map(_ @@ SameSite.Strict)
+          case "none"   => cookie = cookie.map(_ @@ SameSite.None)
           case _        => None
         }
       case (_, _)                => cookie
@@ -177,5 +182,13 @@ object Cookie {
       case Success(r) => Right(r)
       case Failure(e) => Left(s"Invalid http date: $v (${e.getMessage})")
     }
+
+  def path(path: Path): Path                 = path
+  def maxAge(maxAge: Duration): Duration     = maxAge
+  def domain(domain: String): String         = domain
+  def expiry(expires: Instant): Instant      = expires
+  def sameSite(sameSite: SameSite): SameSite = sameSite
+  def secure: Secure                         = true
+//  def httpOnly: HttpOnly                     = true
 
 }
