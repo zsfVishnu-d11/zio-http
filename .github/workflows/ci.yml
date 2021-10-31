@@ -55,11 +55,13 @@ jobs:
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-      - name: Build, test and  verify Coverage
-        id: build_and_test
-        run: sbt ++${{ matrix.scala }} clean coverage test
+      - name: Scala 2.13 build
+        if: startsWith(matrix.scala, '2.13')
+        run: sbt ++${{ matrix.scala }} coverage test coverageReport
 
-      - run: sbt ++${{ matrix.scala }} coverageReport
+      - name: Scala build
+        if: '!startsWith(matrix.scala, ''2.13'')'
+        run: sbt ++${{ matrix.scala }} test
 
       - name: Compress target directories
         run: tar cf targets.tar target zio-http-test/target zio-http/target zio-http-benchmarks/target example/target project/target

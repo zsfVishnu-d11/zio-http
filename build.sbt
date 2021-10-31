@@ -15,11 +15,11 @@ lazy val root = (project in file("."))
 // CI Configuration
 ThisBuild / githubWorkflowBuild         := Seq(
   WorkflowStep.Sbt(
-    id = Some("build_and_test"),
-    name = Some("Build, test and  verify Coverage"),
-    commands = List("clean", "coverage", "test"),
+    List("coverage", "test", "coverageReport"),
+    name = Some("Scala 2.13 build"),
+    cond = Some("startsWith(matrix.scala, '2.13')"),
   ),
-  WorkflowStep.Sbt(List("coverageReport")),
+  WorkflowStep.Sbt(List("test"), name = Some("Scala build"), cond = Some("!startsWith(matrix.scala, '2.13')")),
 )
 ThisBuild / githubWorkflowAddedJobs     :=
   Seq(
