@@ -46,6 +46,11 @@ sealed trait HttpMiddleware[-R, +E] { self =>
   def modifyM[R1 <: R, E1 >: E](f: RequestP[ZIO[R1, Option[E1], HttpMiddleware[R1, E1]]]): HttpMiddleware[R1, E1] =
     HttpMiddleware.fromMiddlewareFunctionM((m, u, h) => f(m, u, h))
 
+  def ifThenElse[R1 <: R, E1 >: E](f: RequestP[Boolean])(ifTrue: HttpApp[R1,E1], ifFalse: HttpApp[R1,E1]) =
+    HttpMiddleware.IfThenElse(f, ifTrue, ifFalse)
+
+  def ifThenElseM[R1 <: R, E1 >: E](f: RequestP[ZIO[R1,Option[E1], Boolean]])(ifTrue: HttpApp[R1,E1], ifFalse: HttpApp[R1,E1]) =
+    HttpMiddleware.IfThenElseM(f, ifTrue, ifFalse)
 }
 
 object HttpMiddleware {
@@ -73,6 +78,10 @@ object HttpMiddleware {
 
   private final case class OrElse[R, E](self: HttpMiddleware[R, Any], other: HttpMiddleware[R, E])
       extends HttpMiddleware[R, E]
+
+  final case class IfThenElse[R,E](f: RequestP[Boolean], ifTrue: HttpApp[R,E], ifFalse: HttpApp[R,E]) extends HttpMiddleware[R,E]
+
+  final case class IfThenElseM[R,E](f: RequestP[ZIO[R,Option[E], Boolean]], ifTrue: HttpApp[R,E], ifFalse: HttpApp[R,E]) extends HttpMiddleware[R,E]
 
   final case class PartiallyAppliedMake[S](req: (Method, URL, List[Header]) => S) extends AnyVal {
     def apply(res: (Status, List[Header], S) => Patch): HttpMiddleware[Any, Nothing] =
@@ -214,6 +223,19 @@ object HttpMiddleware {
       case OrElse(self, other) =>
         HttpApp.fromOptionFunction { req =>
           (self(app)(req) orElse other(app)(req)).asInstanceOf[ZIO[R, Option[E], Response[R, E]]]
+        }
+
+      case IfThenElse(f, ifTrue, ifFalse) =>
+        HttpApp.fromFunction { req =>
+        if(f(req.method, req.url, req.headers)) ifTrue else ifFalse
+      }
+
+      case IfThenElseM(f, ifTrue, ifFalse) =>
+        HttpApp.fromOptionFunction { req =>
+          for {
+            boolean <- f(req.method, req.url, req.headers)
+            res <- if(boolean) ifTrue(req) else ifFalse(req)
+          } yield res
         }
     }
 
