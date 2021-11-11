@@ -197,22 +197,22 @@ object HttpAppSpec extends DefaultRunnableSpec with HttpMessageAssertions {
       testM("text") {
         val content = HttpApp
           .fromHttp(Http.collect[Request] { case _ => Ok })
-          .getRequestContent(ContentDecoder.text)
+          .getRequestContent(Decoder.text)
 
         assertM(content)(equalTo("ABCD"))
       } +
       testM("text (twice)") {
         val content = HttpApp
-          .fromHttp(Http.collectM[Request] { case req => req.decodeContent(ContentDecoder.text).as(Ok) })
-          .getRequestContent(ContentDecoder.text)
+          .fromHttp(Http.collectM[Request] { case req => req.decode(Decoder.text).as(Ok) })
+          .getRequestContent(Decoder.text)
           .either
 
-        assertM(content)(isLeft(equalTo(ContentDecoder.Error.ContentDecodedOnce)))
+        assertM(content)(isLeft(equalTo(Decoder.Error.ContentDecodedOnce)))
       } +
       testM("custom") {
         val content = HttpApp
           .fromHttp(Http.collect[Request] { case _ => Ok })
-          .getRequestContent(ContentDecoder.collect(Chunk[Byte]()) { case (a, b, isLast) =>
+          .getRequestContent(Decoder.collect(Chunk[Byte]()) { case (a, b, isLast) =>
             ZIO((if (isLast) Option(b ++ a) else None, b ++ a))
           })
           .map(chunk => new String(chunk.toArray))

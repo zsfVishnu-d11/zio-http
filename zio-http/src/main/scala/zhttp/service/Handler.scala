@@ -17,12 +17,12 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], runtime: Http
     extends ChannelInboundHandlerAdapter
     with WebSocketUpgrade[R] { self =>
 
-  private val cBody: ByteBuf                                            = Unpooled.compositeBuffer()
-  private var decoder: ContentDecoder[Any, Throwable, Chunk[Byte], Any] = _
-  private var completePromise: Promise[Throwable, Any]                  = _
-  private var isFirst: Boolean                                          = true
-  private var decoderState: Any                                         = _
-  private var jReq: HttpRequest                                         = _
+  private val cBody: ByteBuf                                     = Unpooled.compositeBuffer()
+  private var decoder: Decoder[Any, Throwable, Chunk[Byte], Any] = _
+  private var completePromise: Promise[Throwable, Any]           = _
+  private var isFirst: Boolean                                   = true
+  private var decoderState: Any                                  = _
+  private var jReq: HttpRequest                                  = _
 
   override def channelRegistered(ctx: ChannelHandlerContext): Unit = {
     ctx.channel().config().setAutoRead(false)
@@ -168,11 +168,11 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], runtime: Http
      */
     def decodeContent(
       content: ByteBuf,
-      decoder: ContentDecoder[Any, Throwable, Chunk[Byte], Any],
+      decoder: Decoder[Any, Throwable, Chunk[Byte], Any],
       isLast: Boolean,
     ): Unit = {
       decoder match {
-        case ContentDecoder.Text =>
+        case Decoder.Text =>
           cBody.writeBytes(content)
           if (isLast) {
             unsafeRunZIO(self.completePromise.succeed(cBody.toString(HTTP_CHARSET)))
@@ -180,7 +180,7 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], runtime: Http
             ctx.read(): Unit
           }
 
-        case step: ContentDecoder.Step[_, _, _, _, _] =>
+        case step: Decoder.Step[_, _, _, _, _] =>
           if (self.isFirst) {
             self.decoderState = step.state
             self.isFirst = false
@@ -189,7 +189,7 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], runtime: Http
 
           unsafeRunZIO(for {
             (publish, state) <- step
-              .asInstanceOf[ContentDecoder.Step[R, Throwable, Any, Chunk[Byte], Any]]
+              .asInstanceOf[Decoder.Step[R, Throwable, Any, Chunk[Byte], Any]]
               .next(
                 // content.array() can fail in case of no backing byte array
                 // Link: https://livebook.manning.com/book/netty-in-action/chapter-5/54
@@ -206,11 +206,10 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], runtime: Http
               if (!isLast) ctx.read(): Unit
             }
           } yield ())
-
       }
     }
 
-    def checkExpectHeader(): Unit = if (jReq.headers().contains(HttpHeaderNames.EXPECT) && statusContinue) {
+    def addStatusContinue(): Unit = if (jReq.headers().contains(HttpHeaderNames.EXPECT) && statusContinue) {
       ctx.writeAndFlush(
         new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, Status.CONTINUE.asJava, Unpooled.EMPTY_BUFFER),
       )
@@ -232,24 +231,28 @@ final case class Handler[R, E] private[zhttp] (app: HttpApp[R, E], runtime: Http
         unsafeRun(
           app.asHttp.asInstanceOf[Http[R, Throwable, Request, Response[R, Throwable]]],
           new Request {
-            override def decodeContent[R0, B](
-              decoder: ContentDecoder[R0, Throwable, Chunk[Byte], B],
-            ): ZIO[R0, Throwable, B] =
+            override def decode[R0, B](
+              decoder: Decoder[R0, Throwable, Chunk[Byte], B],
+              continue: Boolean,
+            ): ZIO[R0, Throwable, B] = {
+              println(decoder)
               ZIO.effectSuspendTotal {
                 if (self.decoder != null)
-                  ZIO.fail(ContentDecoder.Error.ContentDecodedOnce)
+                  ZIO.fail(Decoder.Error.ContentDecodedOnce)
                 else
                   for {
                     p <- Promise.make[Throwable, B]
                     _ <- UIO {
-                      self.decoder = decoder.asInstanceOf[ContentDecoder[Any, Throwable, Chunk[Byte], B]]
+                      self.decoder = decoder.asInstanceOf[Decoder[Any, Throwable, Chunk[Byte], B]]
                       self.completePromise = p.asInstanceOf[Promise[Throwable, Any]]
-                      checkExpectHeader()
+                      if (continue)
+                        addStatusContinue()
                       ctx.read(): Unit
                     }
                     b <- p.await
                   } yield b
               }
+            }
 
             override def method: Method                     = Method.fromHttpMethod(jRequest.method())
             override def url: URL                           = URL.fromString(jRequest.uri()).getOrElse(null)
