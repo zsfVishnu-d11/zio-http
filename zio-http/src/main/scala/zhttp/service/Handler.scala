@@ -117,22 +117,25 @@ final case class Handler[R] private[zhttp] (
           if (self.canSwitchProtocol(res)) {
             self.initializeSwitch(ctx, res)
           } else {
-            unsafeWriteAnyResponse(res)
 
             res.data match {
               case HttpData.Empty =>
+                unsafeWriteAnyResponse(res)
                 unsafeWriteAndFlushLastEmptyContent()
 
               case HttpData.Text(data, charset) =>
+                unsafeWriteAnyResponse(res)
                 unsafeWriteLastContent(Unpooled.copiedBuffer(data, charset))
 
               case HttpData.BinaryByteBuf(data) =>
-                unsafeWriteLastContent(data)
+                ctx.writeAndFlush(decodeResponseFull(res, data)): Unit
 
               case HttpData.BinaryChunk(data) =>
+                unsafeWriteAnyResponse(res)
                 unsafeWriteLastContent(Unpooled.copiedBuffer(data.toArray))
 
               case HttpData.BinaryStream(stream) =>
+                unsafeWriteAnyResponse(res)
                 unsafeRunZIO(writeStreamContent(stream.mapChunks(a => Chunk(Unpooled.copiedBuffer(a.toArray)))))
             }
           }
@@ -281,17 +284,37 @@ final case class Handler[R] private[zhttp] (
     if (config.serverTime) serverTime.update(jRes) else jRes
   }
 
-  private def decodeResponseFresh(res: Response[_, _]): HttpResponse = {
+  private def decodeResponseFull(res: Response[_, _], data: ByteBuf): HttpResponse = {
+    val jRes = if (config.memoize) decodeResponseCachedFull(res, data) else decodeResponseFullFresh(res, data)
+    if (config.serverTime) serverTime.update(jRes) else jRes
+  }
+  private def decodeResponseFresh(res: Response[_, _]): HttpResponse               = {
     val jHeaders = Header.disassemble(res.getHeaders)
     new DefaultHttpResponse(HttpVersion.HTTP_1_1, res.status.asJava, jHeaders)
 
   }
 
-  private def decodeResponseCached(res: Response[_, _]): HttpResponse = {
+  private def decodeResponseFullFresh(res: Response[_, _], data: ByteBuf) = {
+    val jHeaders     = Header.disassemble(res.getHeaders)
+    val trailHeaders = new DefaultHttpHeaders(false)
+    new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, res.status.asJava, data, jHeaders, trailHeaders)
+  }
+
+  private def decodeResponseCached(res: Response[_, _]): HttpResponse                    = {
     val cachedResponse = res.cache
     if (cachedResponse != null) cachedResponse
     else {
       val jRes = decodeResponseFresh(res)
+      res.cache = jRes
+
+      jRes
+    }
+  }
+  private def decodeResponseCachedFull(res: Response[_, _], data: ByteBuf): HttpResponse = {
+    val cachedResponse = res.cache
+    if (cachedResponse != null) cachedResponse
+    else {
+      val jRes = decodeResponseFullFresh(res, data)
       res.cache = jRes
 
       jRes
