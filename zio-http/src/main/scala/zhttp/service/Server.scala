@@ -2,7 +2,6 @@ package zhttp.service
 
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelOption
-import io.netty.channel.epoll.EpollChannelOption
 import io.netty.util.ResourceLeakDetector
 import zhttp.http.HttpApp
 import zhttp.service.server.ServerSSLHandler._
