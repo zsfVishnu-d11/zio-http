@@ -28,7 +28,10 @@ final case class ServerChannelInitializer[R](
 
     // ServerCodec
     // Always add ServerCodec
-    pipeline.addLast(HTTP_SERVER_CODEC, new HttpServerCodec()) // TODO: See if server codec is really required
+    pipeline.addLast(
+      HTTP_SERVER_CODEC,
+      new HttpServerCodec(4096, 8192, 8192, false),
+    ) // TODO: See if server codec is really required
 
     // ExpectContinueHandler
     // Add expect continue handler is settings is true
