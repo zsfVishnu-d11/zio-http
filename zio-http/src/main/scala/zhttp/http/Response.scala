@@ -54,13 +54,13 @@ object Response {
     headers: List[Header] = Nil,
     data: HttpData[R, E] = HttpData.Empty,
   ): Response[R, E] = {
-    val size      = data.unsafeSize
+    // val size      = data.unsafeSize
     val isChunked = data.isChunked
 
-    val contentLength    = if (size >= 0) Header.contentLength(size) :: Nil else Nil
+    // val contentLength    = if (size >= 0) Header.contentLength(size) :: Nil else Nil
     val transferEncoding = if (isChunked) Header.transferEncodingChunked :: Nil else Nil
 
-    Response(status, headers ++ transferEncoding ++ contentLength, data, Attribute.empty)
+    Response(status, headers ++ transferEncoding, data, Attribute.empty)
   }
 
   def fromHttpError(error: HttpError): UResponse = {
