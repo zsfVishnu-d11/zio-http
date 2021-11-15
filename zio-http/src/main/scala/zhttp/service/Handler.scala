@@ -284,12 +284,18 @@ final case class Handler[R] private[zhttp] (
 
   private def decodeResponse(res: Response[_, _]): HttpResponse = {
     val jRes = if (config.memoize) decodeResponseCached(res) else decodeResponseFresh(res)
-    if (config.serverTime) serverTime.update(jRes) else jRes
+    if (config.serverTime) {
+      jRes.headers().set(HttpHeaderNames.DATE, serverTime.refreshAndGet)
+    }
+    jRes
   }
 
   private def decodeResponseFull(res: Response[_, _], data: ByteBuf): HttpResponse = {
     val jRes = if (config.memoize) decodeResponseCachedFull(res, data) else decodeResponseFullFresh(res, data)
-    if (config.serverTime) serverTime.update(jRes) else jRes
+    if (config.serverTime) if (config.serverTime) {
+      jRes.headers().set(HttpHeaderNames.DATE, serverTime.refreshAndGet)
+    }
+    jRes
   }
   private def decodeResponseFresh(res: Response[_, _]): HttpResponse               = {
     val jHeaders = Header.disassemble(res.getHeaders)
