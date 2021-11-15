@@ -29,7 +29,10 @@ final case class Handler[R] private[zhttp] (
   private var jReq: HttpRequest                                         = _
   private var request: Request                                          = _
 
-  override def channelRead(ctx: ChannelHandlerContext, msg: Any): Unit = {
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
+    ctx.close(): Unit
+  }
+  override def channelRead(ctx: ChannelHandlerContext, msg: Any): Unit             = {
     val void = ctx.voidPromise()
 
     /**

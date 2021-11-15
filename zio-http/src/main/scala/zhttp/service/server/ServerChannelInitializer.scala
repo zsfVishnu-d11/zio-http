@@ -3,6 +3,7 @@ package zhttp.service.server
 import io.netty.channel.ChannelHandler.Sharable
 import io.netty.channel.{Channel, ChannelInitializer}
 import io.netty.handler.codec.http.{HttpServerCodec, HttpServerExpectContinueHandler, HttpServerKeepAliveHandler}
+import io.netty.handler.flush.FlushConsolidationHandler
 import zhttp.service.Server.Config
 import zhttp.service._
 
@@ -37,6 +38,7 @@ final case class ServerChannelInitializer[R](
     // Add Keep-Alive handler is settings is true
     if (cfg.keepAlive) pipeline.addLast(HTTP_KEEPALIVE_HANDLER, new HttpServerKeepAliveHandler)
 
+    pipeline.addLast(new FlushConsolidationHandler)
     // RequestHandler
     // Always add ZIO Http Request Handler
     pipeline.addLast(HTTP_REQUEST_HANDLER, cfg.app.compile(zExec, cfg, serverTime))
