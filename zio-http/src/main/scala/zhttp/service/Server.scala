@@ -1,6 +1,8 @@
 package zhttp.service
 
 import io.netty.bootstrap.ServerBootstrap
+import io.netty.channel.ChannelOption
+import io.netty.channel.epoll.EpollChannelOption
 import io.netty.util.ResourceLeakDetector
 import zhttp.http.HttpApp
 import zhttp.service.server.ServerSSLHandler._
@@ -119,8 +121,16 @@ object Server {
       eventLoopGroup <- ZManaged.access[EventLoopGroup](_.get)
       zExec          <- HttpRuntime.sticky[R](eventLoopGroup).toManaged_
       init            = ServerChannelInitializer(zExec, settings, ServerTimeGenerator.make)
-      serverBootstrap = new ServerBootstrap().channelFactory(channelFactory).group(eventLoopGroup)
-      _ <- ChannelFuture.asManaged(serverBootstrap.childHandler(init).bind(settings.address))
+      b               = new ServerBootstrap()
+        .option[java.lang.Boolean](ChannelOption.SO_REUSEADDR, true)
+        .option[java.lang.Integer](ChannelOption.SO_BACKLOG, 8192)
+      serverBootstrap = b.channelFactory(channelFactory).group(eventLoopGroup)
+      _ <- ChannelFuture.asManaged(
+        serverBootstrap
+          .childHandler(init)
+          .childOption[java.lang.Boolean](ChannelOption.SO_REUSEADDR, true)
+          .bind(settings.address),
+      )
 
     } yield {
       ResourceLeakDetector.setLevel(settings.leakDetectionLevel.jResourceLeakDetectionLevel)
