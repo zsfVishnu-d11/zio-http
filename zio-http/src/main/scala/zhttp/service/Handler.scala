@@ -11,8 +11,6 @@ import zhttp.service.server.{ServerTimeGenerator, WebSocketUpgrade}
 import zio.stream.ZStream
 import zio.{Chunk, Promise, UIO, ZIO}
 
-import java.net.{InetAddress, InetSocketAddress}
-
 final case class Handler[R] private[zhttp] (
   app: HttpApp[R, Throwable],
   runtime: HttpRuntime[R],
@@ -22,8 +20,8 @@ final case class Handler[R] private[zhttp] (
     with WebSocketUpgrade[R] { self =>
 
   private val cBody: ByteBuf                                            = Unpooled.compositeBuffer()
-  private var decoder: ContentDecoder[Any, Throwable, Chunk[Byte], Any] = _
-  private var completePromise: Promise[Throwable, Any]                  = _
+  private val decoder: ContentDecoder[Any, Throwable, Chunk[Byte], Any] = null
+  private val completePromise: Promise[Throwable, Any]                  = null
   private var isFirst: Boolean                                          = true
   private var decoderState: Any                                         = _
   private var jReq: HttpRequest                                         = _
@@ -226,7 +224,8 @@ final case class Handler[R] private[zhttp] (
         // The explicit call here is added to make unit tests work properly
         ctx.channel().config().setAutoRead(false)
         self.jReq = jRequest
-        self.request = new Request {
+        self.request = null.asInstanceOf[Request]
+        /*new Request {
           override def decodeContent[R0, B](
             decoder: ContentDecoder[R0, Throwable, Chunk[Byte], B],
           ): ZIO[R0, Throwable, B] =
@@ -255,7 +254,7 @@ final case class Handler[R] private[zhttp] (
               case _                    => None
             }
           }
-        }
+        }*/
         unsafeRun(
           app.asHttp.asInstanceOf[Http[R, Throwable, Request, Response[R, Throwable]]],
           self.request,
