@@ -285,10 +285,11 @@ final case class Handler[R] private[zhttp] (
     if (config.memoize) decodeResponseCached(res) else decodeResponseFresh(res)
   }
 
-  private def decodeResponseFull(res: Response[_, _], data: ByteBuf): HttpResponse = {
-    if (config.memoize) decodeResponseCachedFull(res, data) else decodeResponseFullFresh(res, data)
+  private def decodeResponseFull(res: Response[_, _], data: ByteBuf): FullHttpResponse = {
+    val jRes = if (config.memoize) decodeResponseCachedFull(res, data) else decodeResponseFullFresh(res, data)
+    jRes.copy()
   }
-  private def decodeResponseFresh(res: Response[_, _]): HttpResponse               = {
+  private def decodeResponseFresh(res: Response[_, _]): HttpResponse                   = {
     val jHeaders = Header.disassemble(res.getHeaders)
     if (config.serverTime) {
       jHeaders.set(HttpHeaderNames.DATE, serverTime.refreshAndGet)
@@ -297,7 +298,7 @@ final case class Handler[R] private[zhttp] (
 
   }
 
-  private def decodeResponseFullFresh(res: Response[_, _], data: ByteBuf) = {
+  private def decodeResponseFullFresh(res: Response[_, _], data: ByteBuf): FullHttpResponse = {
     val jHeaders     = Header.disassemble(res.getHeaders)
     if (config.serverTime) {
       jHeaders.set(HttpHeaderNames.DATE, serverTime.refreshAndGet)
@@ -306,19 +307,19 @@ final case class Handler[R] private[zhttp] (
     new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, res.status.asJava, data, jHeaders, trailHeaders)
   }
 
-  private def decodeResponseCached(res: Response[_, _]): HttpResponse                    = {
+  private def decodeResponseCached(res: Response[_, _]): HttpResponse                        = {
     val cachedResponse = res.cache
-    if (config.serverTime && !serverTime.refresh() || cachedResponse == null) {
+    if (config.serverTime && serverTime.refresh() || cachedResponse == null) {
       val jRes = decodeResponseFresh(res)
       res.cache = jRes
       jRes
     } else cachedResponse
   }
-  private def decodeResponseCachedFull(res: Response[_, _], data: ByteBuf): HttpResponse = {
-    val cachedResponse = res.cache
-    if (config.serverTime && !serverTime.refresh() || cachedResponse == null) {
+  private def decodeResponseCachedFull(res: Response[_, _], data: ByteBuf): FullHttpResponse = {
+    val cachedResponse = res.fullCache
+    if (config.serverTime && serverTime.refresh() || cachedResponse == null) {
       val jRes = decodeResponseFullFresh(res, data)
-      res.cache = jRes
+      res.fullCache = jRes
       jRes
     } else cachedResponse
   }

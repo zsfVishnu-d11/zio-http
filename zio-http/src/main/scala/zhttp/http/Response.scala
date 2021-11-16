@@ -1,6 +1,6 @@
 package zhttp.http
 
-import io.netty.handler.codec.http.{HttpHeaderNames, HttpResponse}
+import io.netty.handler.codec.http.{FullHttpResponse, HttpHeaderNames, HttpResponse}
 import zhttp.http.HttpError.HTTPErrorWithCause
 import zhttp.socket.{Socket, SocketApp, WebSocketFrame}
 import zio.Chunk
@@ -44,7 +44,8 @@ final case class Response[-R, +E] private (
   /**
    * Caches the response creation if set to true
    */
-  private[zhttp] var cache: HttpResponse = null
+  private[zhttp] var cache: HttpResponse         = null
+  private[zhttp] var fullCache: FullHttpResponse = null
 }
 
 object Response {
