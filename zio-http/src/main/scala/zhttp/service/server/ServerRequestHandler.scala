@@ -65,17 +65,23 @@ final case class ServerRequestHandler[R](
         ctx.write(encodeResponse(jReq.protocolVersion(), res), ctx.channel().voidPromise())
         releaseOrIgnore(jReq)
         content match {
-          case HttpData.StreamData(data)   =>
+          case HttpData.BinaryStream(data)  =>
             zExec.unsafeExecute_(ctx) {
               for {
                 _ <- data.foreachChunk(c => ChannelFuture.unit(ctx.writeAndFlush(Unpooled.copiedBuffer(c.toArray))))
                 _ <- ChannelFuture.unit(ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT))
               } yield ()
             }
-          case HttpData.CompleteData(data) =>
+          case HttpData.BinaryChunk(data)   =>
             ctx.write(Unpooled.copiedBuffer(data.toArray), ctx.channel().voidPromise())
             ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
-          case HttpData.Empty              => ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+          case HttpData.Empty               => ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+          case HttpData.Text(text, charset) =>
+            ctx.write(Unpooled.copiedBuffer(text.getBytes(charset)), ctx.channel().voidPromise())
+            ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+          case HttpData.BinaryByteBuf(data) =>
+            ctx.write(Unpooled.copiedBuffer(data), ctx.channel().voidPromise())
+            ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
         }
         ()
 

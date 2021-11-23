@@ -1,6 +1,8 @@
-import zhttp.http.{Header, HttpData}
+package example
+
+import zhttp.http.Header
 import zhttp.service.{ChannelFactory, Client, EventLoopGroup}
-import zio._
+import zio.{App, ExitCode, URIO, console}
 
 object SimpleClient extends App {
   val env     = ChannelFactory.auto ++ EventLoopGroup.auto()
@@ -10,11 +12,7 @@ object SimpleClient extends App {
   val program = for {
     res <- Client.request(url, headers)
     _   <- console.putStrLn {
-      res.content match {
-        case HttpData.CompleteData(data) => data.map(_.toChar).mkString
-        case HttpData.StreamData(_)      => "<Chunked>"
-        case HttpData.Empty              => ""
-      }
+      res.content.map(_.toChar).mkString
     }
   } yield ()
 

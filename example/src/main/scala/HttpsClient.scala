@@ -1,8 +1,10 @@
+package example
+
 import io.netty.handler.ssl.SslContextBuilder
-import zhttp.http.{Header, HttpData}
+import zhttp.http.Header
 import zhttp.service.client.ClientSSLHandler.ClientSSLOptions
 import zhttp.service.{ChannelFactory, Client, EventLoopGroup}
-import zio._
+import zio.{App, ExitCode, URIO, console}
 
 import java.io.InputStream
 import java.security.KeyStore
@@ -13,7 +15,7 @@ object HttpsClient extends App {
   val url     = "https://sports.api.decathlon.com/groups/water-aerobics"
   val headers = List(Header.host("sports.api.decathlon.com"))
 
-  //Configuring Truststore for https(optional)
+  // Configuring Truststore for https(optional)
   val trustStore: KeyStore                     = KeyStore.getInstance("JKS")
   val trustStorePath: InputStream              = getClass.getResourceAsStream("truststore.jks")
   val trustStorePassword: String               = "changeit"
@@ -29,11 +31,7 @@ object HttpsClient extends App {
   val program = for {
     res <- Client.request(url, headers, sslOption)
     _   <- console.putStrLn {
-      res.content match {
-        case HttpData.CompleteData(data) => data.map(_.toChar).mkString
-        case HttpData.StreamData(_)      => "<Chunked>"
-        case HttpData.Empty              => ""
-      }
+      res.content.map(_.toChar).mkString
     }
   } yield ()
 

@@ -1,5 +1,6 @@
 package zhttp.http
 
+import zhttp.http.HttpError.HTTPErrorWithCause
 import zhttp.http.Response.HttpResponse
 import zhttp.socket.{Socket, SocketApp, WebSocketFrame}
 import zio.Chunk
@@ -39,7 +40,7 @@ private[zhttp] trait ResponseHelpers {
         http(
           error.status,
           Nil,
-          HttpData.CompleteData(cause.cause match {
+          HttpData.BinaryChunk(cause.cause match {
             case Some(throwable) =>
               val sw = new StringWriter
               throwable.printStackTrace(new PrintWriter(sw))
@@ -47,7 +48,7 @@ private[zhttp] trait ResponseHelpers {
             case None            => Chunk.fromArray(s"${cause.message}".getBytes(HTTP_CHARSET))
           }),
         )
-      case _ => http(error.status, Nil, HttpData.CompleteData(Chunk.fromArray(error.message.getBytes(HTTP_CHARSET))))
+      case _ => http(error.status, Nil, HttpData.BinaryChunk(Chunk.fromArray(error.message.getBytes(HTTP_CHARSET))))
     }
 
   }
@@ -56,13 +57,13 @@ private[zhttp] trait ResponseHelpers {
 
   def text(text: String): UResponse =
     http(
-      content = HttpData.CompleteData(Chunk.fromArray(text.getBytes(HTTP_CHARSET))),
+      content = HttpData.BinaryChunk(Chunk.fromArray(text.getBytes(HTTP_CHARSET))),
       headers = List(Header.contentTypeTextPlain),
     )
 
   def jsonString(data: String): UResponse =
     http(
-      content = HttpData.CompleteData(Chunk.fromArray(data.getBytes(HTTP_CHARSET))),
+      content = HttpData.BinaryChunk(Chunk.fromArray(data.getBytes(HTTP_CHARSET))),
       headers = List(Header.contentTypeJson),
     )
 
