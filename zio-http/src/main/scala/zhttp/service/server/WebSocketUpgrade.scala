@@ -24,7 +24,13 @@ trait WebSocketUpgrade[R] { self: ChannelHandler =>
       .pipeline()
       .addLast(new WebSocketServerProtocolHandler(app.config.protocol.javaConfig))
       .addLast(WEB_SOCKET_HANDLER, ServerSocketHandler(runtime, app.config))
-    ctx.channel().eventLoop().submit(() => ctx.fireChannelRead(jReq)): Unit
+    ctx
+      .channel()
+      .eventLoop()
+      .submit(() => {
+        println(ctx.channel().pipeline())
+        ctx.fireChannelRead(jReq)
+      }): Unit
 
   }
 
