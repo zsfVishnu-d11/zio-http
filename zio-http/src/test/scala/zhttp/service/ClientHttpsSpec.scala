@@ -5,8 +5,9 @@ import io.netty.handler.ssl.SslContextBuilder
 import zhttp.http.Status
 import zhttp.internal.HttpRunnableSpec
 import zhttp.service.client.ClientSSLHandler.ClientSSLOptions
+import zio.ZIO
 import zio.duration.durationInt
-import zio.test.Assertion.{anything, equalTo, fails, isSubtype}
+import zio.test.Assertion.{anything, equalTo}
 import zio.test.TestAspect.timeout
 import zio.test.assertM
 
@@ -53,8 +54,10 @@ object ClientHttpsSpec extends HttpRunnableSpec(8082) {
             "https://untrusted-root.badssl.com/",
             sslOption,
           )
-          .run
-        assertM(actual)(fails(isSubtype[DecoderException](anything)))
+          .catchSome { case _: DecoderException =>
+            ZIO.succeed("DecoderException")
+          }
+        assertM(actual)(equalTo("DecoderException"))
       }
   }.provideCustomLayer(env) @@ timeout(30 seconds)
 }
