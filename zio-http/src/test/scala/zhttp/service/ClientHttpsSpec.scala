@@ -56,5 +56,5 @@ object ClientHttpsSpec extends HttpRunnableSpec(8082) {
           .run
         assertM(actual)(fails(isSubtype[DecoderException](anything)))
       }
-  }.provideCustomLayer(env) @@ timeout(30 seconds)
+  }.provideCustomLayer(env) @@ timeout(10 seconds)
 }

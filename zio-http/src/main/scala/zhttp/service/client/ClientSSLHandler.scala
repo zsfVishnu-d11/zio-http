@@ -12,7 +12,12 @@ case object ClientSSLHandler {
   def ssl(sslOption: ClientSSLOptions): SslContext = {
     sslOption match {
       case ClientSSLOptions.DefaultSSL            =>
-        SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build()
+        SslContextBuilder
+          .forClient()
+          .trustManager(InsecureTrustManagerFactory.INSTANCE)
+          .sessionCacheSize(1)
+          .sessionTimeout(60000)
+          .build()
       case ClientSSLOptions.CustomSSL(sslContext) => sslContext
     }
   }
