@@ -604,7 +604,7 @@ object Http {
   }
 
   final class PartialFromFunctionZIO[A](val unit: Unit) extends AnyVal {
-    def apply[R, E, B](f: A => ZIO[R, E, B]): Http[R, E, A, B] = Http.identity[A].mapZIO(f)
+    def apply[R, E, B](f: A => ZIO[R, E, B]): Http[R, E, A, B] = FromFunctionZIO(f)
   }
 
   private final case class Succeed[B](b: B) extends Http[Any, Nothing, Any, B]
