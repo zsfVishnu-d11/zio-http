@@ -67,6 +67,27 @@ object URL {
     path <- Option(uri.getRawPath)
   } yield URL(Path(path), Location.Relative, queryParams(uri.getRawQuery), Fragment.fromURI(uri))
 
+  private def fromAbsoluteURI2(uri: URI): URL = {
+
+    def portFromScheme(scheme: Scheme): Int = scheme match {
+      case Scheme.HTTP  => 80
+      case Scheme.HTTPS => 443
+      case _            => -1
+    }
+
+    val scheme     = Scheme.fromString(uri.getScheme).orNull
+    val port       = if (uri.getPort != -1) uri.getPort else portFromScheme(scheme)
+    val connection =
+      if (port != -1 && scheme != null && uri.getHost != null) URL.Location.Absolute(scheme, uri.getHost, port)
+      else null
+    if (connection != null)
+      URL(Path(uri.getRawPath), connection, queryParams(uri.getRawQuery), Fragment.fromURI(uri))
+    else null
+  }
+
+  private def fromRelativeURI2(uri: URI): URL =
+    URL(Path(uri.getRawPath), Location.Relative, queryParams(uri.getRawQuery), Fragment.fromURI(uri))
+
   def fromString(string: String): Either[HttpError, URL] = {
     def invalidURL = Left(HttpError.BadRequest(s"Invalid URL: $string"))
     for {
@@ -80,6 +101,27 @@ object URL {
       }
 
     } yield url
+  }
+  /*
+Changes:
+1) wrapped in try catch
+2) using other fromAbsoluteURI2(url) and fromRelativeURI2(url) which returns null or URL
+   */
+  def fromString2(string: String): URL                   = {
+    try {
+      val url = new URI(string)
+      if (url.isAbsolute) fromAbsoluteURI2(url) else fromRelativeURI2(url)
+    } catch { case _: Throwable => null }
+  }
+  /*
+Changes:
+1) wrapped in try catch and using fromAbsoluteURI(url).orNull
+   */
+  def fromString3(string: String): URL                   = {
+    try {
+      val url = new URI(string)
+      if (url.isAbsolute) fromAbsoluteURI(url).orNull else fromRelativeURI(url).orNull
+    } catch { case _: Throwable => null }
   }
 
   def asString(url: URL): String = {
