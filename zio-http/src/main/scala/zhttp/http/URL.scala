@@ -72,7 +72,7 @@ object URL {
     def portFromScheme(scheme: Scheme): Int = scheme match {
       case Scheme.HTTP  => 80
       case Scheme.HTTPS => 443
-      case _            => -1
+      case null         => -1
     }
 
     val scheme     = Scheme.fromString(uri.getScheme).orNull
